@@ -8,5 +8,4 @@ public class Patient
     public bool IsMale { get; set; }
     public string Oib { get; set; }
     public DateTime Birthday { get; set; }
-
 }

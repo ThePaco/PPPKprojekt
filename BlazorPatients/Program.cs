@@ -1,4 +1,10 @@
 using BlazorPatients.Components;
+using BlazorPatients.Data;
+using BlazorPatients.Services;
+using BlazorPatients.Validators;
+using BlazorPatients.ViewModels;
+using FluentValidation;
+using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -6,7 +12,18 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
 
+builder.Services.AddDbContextPool<PatientsContext>(options => options
+                                                   .UseNpgsql(builder
+                                                     .Configuration
+                                                     .GetConnectionString("DefaultConnection")));
+
+builder.Services
+       .AddScoped<IValidator<PatientViewModel>, PatientValidator>()
+       .AddScoped<PatientService>(); 
+
 var app = builder.Build();
+
+AppContext.SetSwitch("Npgsql.EnableLegacyTimestampBehavior", true);
 
 // Configure the HTTP request pipeline.
 if (!app.Environment.IsDevelopment())
