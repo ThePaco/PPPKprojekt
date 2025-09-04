@@ -5,6 +5,155 @@
 <h1>Hello, Doctor!</h1>
 
 <div>
-    <p>Welcome to your patient management system. Use the navigation menu to add new patients or view existing ones.</p>
-    <p>Get details about a patient; their medical history, past visits or prescriptions</p>
+    <div>
+        <p>Welcome to your patient management system. Use the navigation menu to add new patients or view existing ones.</p>
+        <p>Get details about a patient; their medical history, past visits or prescriptions</p>
+    </div>
+
+    <div class="mt-4">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h3>All Patients</h3>
+            <button type="button" class="btn btn-success" @onclick="OpenAddPatientModal">
+                <i class="bi bi-plus-circle"></i> Add New Patient
+            </button>
+        </div>
+
+        <div class="mb-3">
+            <div class="input-group" style="max-width: 400px;">
+                <span class="input-group-text">
+                    <i class="bi bi-search"></i>
+                </span>
+                <input type="text" 
+                       class="form-control" 
+                       placeholder="Search by OIB, first name, or last name..." 
+                       value="@SearchTerm"
+                       @onchange="OnSearchChanged" />
+            </div>
+            @if (!string.IsNullOrWhiteSpace(SearchTerm))
+            {
+                <small class="text-muted">
+                    Showing @FilteredPatients.Count of @Patients.Count patients
+                </small>
+            }
+        </div>
+        
+        @if (FilteredPatients.Any())
+        {
+            <table class="table table-striped">
+                <thead>
+                <tr>
+                    <th>OIB</th>
+                    <th>First Name</th>
+                    <th>Last Name</th>
+                    <th>Gender</th>
+                    <th>Birthday</th>
+                    <th>Full details: </th>
+                </tr>
+                </thead>
+                <tbody>
+                    @foreach (var patient in FilteredPatients)
+                    {
+                        <tr>
+                            <td>@patient.Oib</td>
+                            <td>@patient.FirstName</td>
+                            <td>@patient.LastName</td>
+                            <td>@(patient.IsMale ? "Male" : "Female")</td>
+                            <td>@patient.Birthday.ToString("dd/MM/yyyy")</td>
+                            <td><a class="btn btn-primary" href="@($"patientdetails/{patient.Id}")">Details</a></td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        }
+        else if (!string.IsNullOrWhiteSpace(SearchTerm))
+        {
+            <p class="text-muted">No patients found matching "@SearchTerm".</p>
+        }
+        else
+        {
+            <p class="text-muted">No patients found in the system.</p>
+        }
+    </div>
 </div>
+
+<!-- Add Patient Modal -->
+@if (ShowAddPatientModal)
+{
+    <div class="modal fade show" style="display: block;" tabindex="-1" role="dialog">
+        <div class="modal-dialog" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Add New Patient</h5>
+                    <button type="button" class="btn-close" @onclick="CloseAddPatientModal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Patient's first name:</label>
+                        <input class="form-control"
+                               type="text"
+                               @bind="NewPatient.FirstName"/>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Patient's last name:</label>
+                        <input class="form-control"
+                               type="text"
+                               @bind="NewPatient.LastName" />
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Patient's OIB:</label>
+                        <input class="form-control"
+                               type="text"
+                               @bind="NewPatient.Oib" />
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Patient's date of birth:</label>
+                        <input class="form-control"
+                               type="date"
+                               @bind="NewPatient.Birthday" />
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Patient's sex:</label>
+                        <div class="form-check">
+                            <input class="form-check-input" 
+                                   type="radio" 
+                                   name="patientSex" 
+                                   id="patientMale" 
+                                   value="Male" 
+                                   @onchange="@((e) => NewPatient.IsMale = e.Value.ToString() == "Male")" />
+                            <label class="form-check-label" for="patientMale">
+                                Male
+                            </label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" 
+                                   type="radio" 
+                                   name="patientSex" 
+                                   id="patientFemale" 
+                                   value="Female" 
+                                   @onchange="@((e) => NewPatient.IsMale = e.Value.ToString() == "Female")" />
+                            <label class="form-check-label" for="patientFemale">
+                                Female
+                            </label>
+                        </div>
+                    </div>
+
+                    @if (@AddPatientMessage is not null && @AddPatientMessage.Length != 0)
+                    {
+                        <div class="alert @(AddPatientMessage.Contains("successfully") ? "alert-success" : "alert-danger")">
+                            @AddPatientMessage
+                        </div>
+                    }
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" @onclick="CloseAddPatientModal">Cancel</button>
+                    <button type="button" class="btn btn-primary" @onclick="AddPatientAsync">Add Patient</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="modal-backdrop fade show"></div>
+}

@@ -19,7 +19,25 @@ builder.Services.AddDbContextPool<PatientsContext>(options => options
 
 builder.Services
        .AddScoped<IValidator<PatientViewModel>, PatientValidator>()
-       .AddScoped<PatientService>(); 
+       .AddScoped<PatientService>()
+       .AddScoped<IValidator<PrescriptionViewModel>, PrescriptionValidator>()
+       .AddScoped<PrescriptionService>()
+       .AddScoped<IValidator<VisitViewModel>, VisitValidator>()
+       .AddScoped<VisitService>()
+       .AddScoped<ImageService>();
+
+builder.Services.AddScoped(provider =>
+{
+    var options = new Supabase.SupabaseOptions()
+                  {
+                      AutoRefreshToken = true,
+                      AutoConnectRealtime = true
+                  };
+
+    return new Supabase.Client(builder.Configuration["Supabase:Url"] ?? throw new InvalidOperationException("Supabase:Url is not configured."),
+                               builder.Configuration["Supabase:Key"] ?? throw new InvalidOperationException("Supabase:Key is not configured."),
+                               options);
+});
 
 var app = builder.Build();
 

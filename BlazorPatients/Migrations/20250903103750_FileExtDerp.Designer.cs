@@ -12,8 +12,8 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace BlazorPatients.Migrations
 {
     [DbContext(typeof(PatientsContext))]
-    [Migration("20250901190748_AddPrescriptionAndOibIndex")]
-    partial class AddPrescriptionAndOibIndex
+    [Migration("20250903103750_FileExtDerp")]
+    partial class FileExtDerp
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -24,6 +24,31 @@ namespace BlazorPatients.Migrations
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
+
+            modelBuilder.Entity("BlazorPatients.Models.Image", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("FileName")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<Guid>("ImageGuid")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("VisitId")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("VisitId");
+
+                    b.ToTable("Images", (string)null);
+                });
 
             modelBuilder.Entity("BlazorPatients.Models.Patient", b =>
                 {
@@ -92,6 +117,45 @@ namespace BlazorPatients.Migrations
                     b.ToTable("Prescriptions", (string)null);
                 });
 
+            modelBuilder.Entity("BlazorPatients.Models.Visit", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("Date")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("DoctorsNotes")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<int>("PatientId")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("Type")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("PatientId");
+
+                    b.ToTable("Visits", (string)null);
+                });
+
+            modelBuilder.Entity("BlazorPatients.Models.Image", b =>
+                {
+                    b.HasOne("BlazorPatients.Models.Visit", "Visit")
+                        .WithMany("Images")
+                        .HasForeignKey("VisitId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Visit");
+                });
+
             modelBuilder.Entity("BlazorPatients.Models.Prescription", b =>
                 {
                     b.HasOne("BlazorPatients.Models.Patient", "Patient")
@@ -103,9 +167,27 @@ namespace BlazorPatients.Migrations
                     b.Navigation("Patient");
                 });
 
+            modelBuilder.Entity("BlazorPatients.Models.Visit", b =>
+                {
+                    b.HasOne("BlazorPatients.Models.Patient", "Patient")
+                        .WithMany("Visits")
+                        .HasForeignKey("PatientId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Patient");
+                });
+
             modelBuilder.Entity("BlazorPatients.Models.Patient", b =>
                 {
                     b.Navigation("Prescriptions");
+
+                    b.Navigation("Visits");
+                });
+
+            modelBuilder.Entity("BlazorPatients.Models.Visit", b =>
+                {
+                    b.Navigation("Images");
                 });
 #pragma warning restore 612, 618
         }

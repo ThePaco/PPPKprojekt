@@ -3,6 +3,7 @@ using System;
 using BlazorPatients.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace BlazorPatients.Migrations
 {
     [DbContext(typeof(PatientsContext))]
-    partial class PatientsContextModelSnapshot : ModelSnapshot
+    [Migration("20250901200602_PatientsPrescriptions")]
+    partial class PatientsPrescriptions
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -21,31 +24,6 @@ namespace BlazorPatients.Migrations
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
-
-            modelBuilder.Entity("BlazorPatients.Models.Image", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
-
-                    b.Property<string>("FileExt")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<Guid>("ImageGuid")
-                        .HasColumnType("uuid");
-
-                    b.Property<int>("VisitId")
-                        .HasColumnType("integer");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("VisitId");
-
-                    b.ToTable("Images", (string)null);
-                });
 
             modelBuilder.Entity("BlazorPatients.Models.Patient", b =>
                 {
@@ -139,18 +117,7 @@ namespace BlazorPatients.Migrations
 
                     b.HasIndex("PatientId");
 
-                    b.ToTable("Visits", (string)null);
-                });
-
-            modelBuilder.Entity("BlazorPatients.Models.Image", b =>
-                {
-                    b.HasOne("BlazorPatients.Models.Visit", "Visit")
-                        .WithMany("Images")
-                        .HasForeignKey("VisitId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Visit");
+                    b.ToTable("Visits");
                 });
 
             modelBuilder.Entity("BlazorPatients.Models.Prescription", b =>
@@ -180,11 +147,6 @@ namespace BlazorPatients.Migrations
                     b.Navigation("Prescriptions");
 
                     b.Navigation("Visits");
-                });
-
-            modelBuilder.Entity("BlazorPatients.Models.Visit", b =>
-                {
-                    b.Navigation("Images");
                 });
 #pragma warning restore 612, 618
         }

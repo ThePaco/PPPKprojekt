@@ -2,10 +2,12 @@
 
 public class Patient
 {
-    public int Id { get; set; }
-    public string FirstName { get; set; }
-    public string LastName { get; set; }
-    public bool IsMale { get; set; }
-    public string Oib { get; set; }
-    public DateTime Birthday { get; set; }
+    public required int Id { get; set; }
+    public required string FirstName { get; set; }
+    public required string LastName { get; set; }
+    public required bool IsMale { get; set; }
+    public required string Oib { get; set; }
+    public required DateTime Birthday { get; set; }
+    public ICollection<Prescription> Prescriptions { get; set; } = new List<Prescription>();
+    public ICollection<Visit> Visits { get; set; } = new List<Visit>();
 }

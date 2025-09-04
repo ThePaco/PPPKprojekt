@@ -1,0 +1,294 @@
+﻿@page "/visitdetails/{VisitId:int}"
+@using BlazorPatients.Models.Enum
+
+<h3>Visit Details - Visit #@VisitId</h3>
+
+<div class="form-control">
+    <label class="col-4 col-form-label">Visit Type:</label>
+    <div class="col-8">
+        <select class="form-control" @bind="Visit.Type">
+            @foreach (var visitType in Enum.GetValues<VisitType>())
+            {
+                <option value="@visitType">@GetVisitTypeDisplayName(visitType)</option>
+            }
+        </select>
+    </div>
+
+    <label class="col-4 col-form-label">Visit Date:</label>
+    <div class="col-8">
+        <input class="form-control"
+               type="date"
+               @bind="Visit.Date" />
+    </div>
+
+    <label class="col-4 col-form-label">Doctor's Notes:</label>
+    <div class="col-8">
+        <textarea class="form-control"
+                  rows="6"
+                  @bind="Visit.DoctorsNotes"
+                  placeholder="Enter doctor's notes for this visit..."></textarea>
+    </div>
+
+    @if (@Message is not null && @Message.Length != 0)
+    {
+        <div class="row">
+            <span class="alert @(Message.Contains("successfully") ? "alert-success" : "alert-danger")">@Message</span>
+        </div>
+    }
+    
+    <div class="row mt-3">
+        <div class="col-auto">
+            <button class="btn btn-primary" @onclick="UpdateVisitAsync">Update Visit Details</button>
+        </div>
+        <div class="col-auto">
+            <button class="btn btn-danger" @onclick="OpenDeleteVisitModal">Remove Visit</button>
+        </div>
+        <div class="col-auto">
+            <a class="btn btn-secondary" href="/patientdetails/@Visit.PatientId">Back to Patient</a>
+        </div>
+    </div>
+</div>
+
+<!-- Images Panel -->
+<div class="mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h4>Images</h4>
+        <button class="btn btn-success btn-sm" @onclick="OpenUploadImageModal">
+            <i class="bi bi-upload"></i> Upload Images
+        </button>
+    </div>
+
+    @if (isLoadingImages)
+    {
+        <div class="text-center p-4">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Loading images...</span>
+            </div>
+            <p class="mt-2 text-muted">Loading images...</p>
+        </div>
+    }
+    else if (Visit.Images.Any())
+    {
+        <div class="row g-3">
+            @foreach (var image in Visit.Images)
+            {
+                <div class="col-md-3 col-sm-4 col-6">
+                    <div class="card">
+                        <div class="position-relative">
+                            @if (IsImageLoading(image.ImageGuid))
+                            {
+                                <div class="d-flex align-items-center justify-content-center" style="height: 200px; background-color: #f8f9fa;">
+                                    <div class="spinner-border text-primary" role="status">
+                                        <span class="visually-hidden">Loading...</span>
+                                    </div>
+                                </div>
+                            }
+                            else
+                            {
+                                <img src="@GetImageUrl(image.ImageGuid, image.FileExt)" 
+                                     class="card-img-top" 
+                                     alt="Visit Image" 
+                                     style="height: 200px; object-fit: cover; cursor: pointer;"
+                                     @onclick="() => OpenImageModal(image.ImageGuid)"
+                                     @onerror="() => HandleImageError(image.ImageGuid)" />
+                            }
+                        </div>
+                        <div class="card-body p-2">
+                            <button class="btn btn-danger btn-sm w-100" 
+                                    @onclick="() => OpenDeleteImageModal(image.Id, image.ImageGuid)">
+                                <i class="bi bi-trash"></i> Delete
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+    }
+    else
+    {
+        <div class="text-center p-4 border border-dashed rounded">
+            <i class="bi bi-images" style="font-size: 3rem; color: #6c757d;"></i>
+            <p class="text-muted mt-2">No images present. Upload images...</p>
+        </div>
+    }
+</div>
+
+<!-- Upload Image Modal -->
+@if (ShowUploadImageModal)
+{
+    <div class="modal fade show" style="display: block;" tabindex="-1" role="dialog">
+        <div class="modal-dialog" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Upload Image</h5>
+                    <button type="button" class="btn-close" @onclick="CloseUploadImageModal" aria-label="Close" disabled="@isUploading"></button>
+                </div>
+                <div class="modal-body">
+                    <EditForm Model="this" OnValidSubmit="UploadImageAsync">
+                        <div class="mb-3">
+                            <label for="imageFile" class="form-label">Select Image File</label>
+                            <InputFile id="imageFile" 
+                                       class="form-control" 
+                                       OnChange="OnFileSelected"
+                                       accept="image/*" 
+                                       disabled="@isUploading" />
+                            <div class="form-text">Supported formats: JPG, PNG, GIF, BMP, WebP. Max size: 10MB</div>
+                        </div>
+
+                        @if (selectedFile != null)
+                        {
+                            <div class="alert alert-info">
+                                <strong>Selected:</strong> @selectedFile.Name 
+                                <small class="text-muted">(@FormatFileSize(selectedFile.Size))</small>
+                            </div>
+                        }
+
+                        @if (isUploading)
+                        {
+                            <div class="text-center">
+                                <div class="spinner-border text-primary" role="status">
+                                    <span class="visually-hidden">Uploading...</span>
+                                </div>
+                                <p class="mt-2">Uploading image...</p>
+                            </div>
+                        }
+                    </EditForm>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" @onclick="CloseUploadImageModal" disabled="@isUploading">Cancel</button>
+                    <button type="button" class="btn btn-primary" @onclick="UploadImageAsync" disabled="@(selectedFile == null || isUploading)">
+                        @if (isUploading)
+                        {
+                            <span class="spinner-border spinner-border-sm me-2" role="status"></span>
+                            <span>Uploading...</span>
+                        }
+                        else
+                        {
+                            <i class="bi bi-upload"></i>
+                            <span>Upload Image</span>
+                        }
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="modal-backdrop fade show"></div>
+}
+
+<!-- Delete Visit Confirmation Modal -->
+@if (ShowDeleteVisitModal)
+{
+    <div class="modal fade show" style="display: block;" tabindex="-1" role="dialog">
+        <div class="modal-dialog modal-sm" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Remove Visit</h5>
+                    <button type="button" class="btn-close" @onclick="CloseDeleteVisitModal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <p>Are you sure you want to remove this visit?</p>
+                    <div class="alert alert-warning">
+                        <small>This action cannot be undone.</small>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" @onclick="CloseDeleteVisitModal">Cancel</button>
+                    <button type="button" class="btn btn-danger" @onclick="ConfirmDeleteVisitAsync">Remove Visit</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="modal-backdrop fade show"></div>
+}
+
+<!-- Image View Modal -->
+@if (ShowImageModal)
+{
+    <div class="modal fade show" style="display: block;" tabindex="-1" role="dialog">
+        <div class="modal-dialog modal-lg" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">View Image</h5>
+                    <button type="button" class="btn-close" @onclick="CloseImageModal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body text-center">
+                    @{
+                        var selectedImage = Visit.Images.FirstOrDefault(i => i.ImageGuid == SelectedImageGuid);
+                    }
+                    @if (selectedImage != null)
+                    {
+                        @if (IsImageLoading(SelectedImageGuid))
+                        {
+                            <div class="d-flex align-items-center justify-content-center" style="height: 400px;">
+                                <div class="spinner-border text-primary" role="status">
+                                    <span class="visually-hidden">Loading...</span>
+                                </div>
+                            </div>
+                        }
+                        else
+                        {
+                            <img src="@GetImageUrl(SelectedImageGuid, selectedImage.FileExt)" 
+                                 class="img-fluid" 
+                                 alt="Visit Image" 
+                                 @onerror="() => HandleImageError(SelectedImageGuid)" />
+                        }
+                    }
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" @onclick="CloseImageModal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="modal-backdrop fade show"></div>
+}
+
+<!-- Delete Image Confirmation Modal -->
+@if (ShowDeleteImageModal)
+{
+    <div class="modal fade show" style="display: block;" tabindex="-1" role="dialog">
+        <div class="modal-dialog modal-sm" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Delete Image</h5>
+                    <button type="button" class="btn-close" @onclick="CloseDeleteImageModal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <p>Are you sure you want to delete this image?</p>
+                    <div class="alert alert-warning">
+                        <small>This action cannot be undone.</small>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" @onclick="CloseDeleteImageModal">Cancel</button>
+                    <button type="button" class="btn btn-danger" @onclick="ConfirmDeleteImageAsync">Delete</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="modal-backdrop fade show"></div>
+}
+
+@code {
+    private string FormatFileSize(long bytes)
+    {
+        const long kb = 1024;
+        const long mb = kb * 1024;
+        const long gb = mb * 1024;
+
+        return bytes switch
+        {
+            >= gb => $"{bytes / (double)gb:F2} GB",
+            >= mb => $"{bytes / (double)mb:F2} MB",
+            >= kb => $"{bytes / (double)kb:F2} KB",
+            _ => $"{bytes} B"
+        };
+    }
+
+    private void HandleImageError(Guid imageGuid)
+    {
+        // Handle image load errors by showing an error placeholder
+        imageUrls[imageGuid] = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Crect width='100%25' height='100%25' fill='%23f8f9fa'/%3E%3Ctext x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' fill='%23dc3545'%3EImage Error%3C/text%3E%3C/svg%3E";
+        StateHasChanged();
+    }
+}

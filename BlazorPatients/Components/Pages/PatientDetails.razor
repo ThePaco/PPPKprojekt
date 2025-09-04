@@ -1,5 +1,380 @@
-﻿<h3>Patient Details</h3>
+﻿@page "/patientdetails/{Id:int}"
+@using BlazorPatients.Models.Enum
+
+<h3>Details for patient: @Patient.FirstName @Patient.LastName </h3>
+
+<div class="form-control">
+    <label class="col-4 col-form-label">Patient's first name:</label>
+    <div class="col-8">
+        <input class="form-control"
+               type="text"
+               @bind="Patient.FirstName" />
+    </div>
+
+    <label class="col-4 col-form-label">Patient's last name:</label>
+    <div class="col-8">
+        <input class="form-control"
+               type="text"
+               @bind="Patient.LastName" />
+    </div>
+    <label class="col-4 col-form-label">Patient's OIB:</label>
+    <div class="col-8">
+        <span> @Patient.Oib </span>
+    </div>
+    <label class="col-4 col-form-label">Patient's date of birth:</label>
+    <div class="col-8">
+        <input class="form-control"
+               type="date"
+               @bind="Patient.Birthday" />
+    </div>
+    <label class="col-4 col-form-label">Patient's sex:</label>
+    <div class="form-check">
+        <input class="form-check-input"
+               type="radio"
+               name="sex"
+               id="male"
+               value="Male"
+               checked="@Patient.IsMale"
+               @onchange="@((e) => Patient.IsMale = true)" />
+        <label class="form-check-label" for="male">
+            Male
+        </label>
+    </div>
+    <div class="form-check">
+        <input class="form-check-input"
+               type="radio"
+               name="sex"
+               id="female"
+               value="Female"
+               checked="@(!Patient.IsMale)"
+               @onchange="@((e) => Patient.IsMale = false)" />
+        <label class="form-check-label" for="female">
+            Female
+        </label>
+    </div>
+    @if (@Message is not null && @Message.Length != 0)
+    {
+        <div class="row">
+            <span class="alert alert-danger">@Message</span>
+        </div>
+    }
+    <div class="row mt-3">
+        <div class="d-flex gap-2">
+            <button class="btn btn-primary w-auto" @onclick="UpdatePatientAsync">Update patient details</button>
+            <button class="btn btn-danger w-auto" @onclick="OpenDeletePatientModal">Remove patient</button>
+        </div>
+    </div>
+</div>
+
+<!-- Prescriptions Table -->
+<div class="mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h4>Prescriptions</h4>
+        <button class="btn btn-success btn-sm" @onclick="OpenAddPrescriptionModal">
+            <i class="bi bi-plus"></i> Add New
+        </button>
+    </div>
+    
+    @if (Patient.Prescriptions.Any())
+    {
+        <table class="table table-striped">
+            <thead>
+                <tr>
+                    <th>Medication Name</th>
+                    <th>Date Prescribed</th>
+                    <th>Date Ending</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var prescription in Patient.Prescriptions)
+                {
+                    <tr>
+                        <td>@prescription.MedicationName</td>
+                        <td>@prescription.DatePrescribed.ToString("dd/MM/yyyy")</td>
+                        <td>
+                            @if (prescription.DateEnding.HasValue)
+                            {
+                                @prescription.DateEnding.Value.ToString("dd/MM/yyyy")
+                            }
+                            else
+                            {
+                                <span class="text-success">Ongoing</span>
+                            }
+                        </td>
+                        <td>
+                            <div class="btn-group" role="group">
+                                <button class="btn btn-warning btn-sm" 
+                                        disabled="@prescription.DateEnding.HasValue"
+                                        @onclick="() => OpenEndPrescriptionModal(prescription.PrecriptionId)">
+                                    End Prescription
+                                </button>
+                                <button class="btn btn-danger btn-sm"
+                                        @onclick="() => OpenDeletePrescriptionModal(prescription.PrecriptionId, prescription.MedicationName)">
+                                    Delete
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    }
+    else
+    {
+        <p class="text-muted">No prescriptions found for this patient.</p>
+    }
+</div>
+
+<!-- Visits Table -->
+<div class="mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h4>Visits</h4>
+        <button class="btn btn-success btn-sm" @onclick="OpenAddVisitModal">
+            <i class="bi bi-plus"></i> Add New
+        </button>
+    </div>
+    
+    @if (Patient.Visits.Any())
+    {
+        <table class="table table-striped">
+            <thead>
+                <tr>
+                    <th>Visit Type</th>
+                    <th>Visit Date</th>
+                    <th>Doctor's Notes</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var visit in Patient.Visits)
+                {
+                    <tr>
+                        <td>@visit.Type</td>
+                        <td>@visit.Date.ToString("dd/MM/yyyy")</td>
+                        <td>@visit.DoctorsNotes</td>
+                        <td>
+                            <button class="btn btn-info btn-sm" 
+                                    @onclick="() => ViewVisitDetails(visit.VisitId)">
+                                More Details
+                            </button>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    }
+    else
+    {
+        <p class="text-muted">No visits found for this patient.</p>
+    }
+</div>
+
+<!-- Add Prescription Modal -->
+@if (ShowAddPrescriptionModal)
+{
+    <div class="modal fade show" style="display: block;" tabindex="-1" role="dialog">
+        <div class="modal-dialog" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Add New Prescription</h5>
+                    <button type="button" class="btn-close" @onclick="CloseAddPrescriptionModal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="medicationName" class="form-label">Medication Name</label>
+                        <input type="text" class="form-control" id="medicationName" 
+                               @bind="NewPrescription.MedicationName" 
+                               placeholder="Enter medication name" />
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="datePrescribed" class="form-label">Date Prescribed</label>
+                        <input type="date" class="form-control" id="datePrescribed" 
+                               @bind="NewPrescription.DatePrescribed" />
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="dateEnding" class="form-label">Date Ending (Optional)</label>
+                        <input type="date" class="form-control" id="dateEnding" 
+                               @bind="NewPrescription.DateEnding" />
+                        <div class="form-text">Leave empty for ongoing prescription</div>
+                    </div>
+                    
+                    @if (!string.IsNullOrEmpty(PrescriptionMessage))
+                    {
+                        <div class="alert @(PrescriptionMessage.Contains("successfully") ? "alert-success" : "alert-danger")">
+                            @PrescriptionMessage
+                        </div>
+                    }
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" @onclick="CloseAddPrescriptionModal">Cancel</button>
+                    <button type="button" class="btn btn-primary" @onclick="AddPrescriptionAsync">Add Prescription</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="modal-backdrop fade show"></div>
+}
+
+<!-- Add Visit Modal -->
+@if (ShowAddVisitModal)
+{
+    <div class="modal fade show" style="display: block;" tabindex="-1" role="dialog">
+        <div class="modal-dialog" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Add New Visit</h5>
+                    <button type="button" class="btn-close" @onclick="CloseAddVisitModal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="visitType" class="form-label">Visit Type</label>
+                        <select class="form-select" id="visitType" @bind="NewVisit.Type">
+                            @foreach (VisitType visitType in Enum.GetValues<VisitType>())
+                            {
+                                <option value="@visitType">@GetVisitTypeDisplayName(visitType)</option>
+                            }
+                        </select>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="visitDate" class="form-label">Visit Date</label>
+                        <input type="date" class="form-control" id="visitDate" 
+                               @bind="NewVisit.Date" />
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="doctorsNotes" class="form-label">Doctor's Notes</label>
+                        <textarea class="form-control" id="doctorsNotes" rows="4"
+                                  @bind="NewVisit.DoctorsNotes" 
+                                  placeholder="Enter doctor's notes for this visit..."></textarea>
+                    </div>
+                    
+                    @if (!string.IsNullOrEmpty(VisitMessage))
+                    {
+                        <div class="alert @(VisitMessage.Contains("successfully") ? "alert-success" : "alert-danger")">
+                            @VisitMessage
+                        </div>
+                    }
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" @onclick="CloseAddVisitModal">Cancel</button>
+                    <button type="button" class="btn btn-primary" @onclick="AddVisitAsync">Add Visit</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="modal-backdrop fade show"></div>
+}
+
+<!-- End Prescription Modal -->
+@if (ShowEndPrescriptionModal)
+{
+    <div class="modal fade show" style="display: block;" tabindex="-1" role="dialog">
+        <div class="modal-dialog modal-sm" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">End Prescription</h5>
+                    <button type="button" class="btn-close" @onclick="CloseEndPrescriptionModal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="endDate" class="form-label">End Date</label>
+                        <input type="date" class="form-control" id="endDate" 
+                               @bind="EndDate" />
+                    </div>
+                    
+                    @if (!string.IsNullOrEmpty(EndPrescriptionMessage))
+                    {
+                        <div class="alert @(EndPrescriptionMessage.Contains("successfully") ? "alert-success" : "alert-danger")">
+                            @EndPrescriptionMessage
+                        </div>
+                    }
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" @onclick="CloseEndPrescriptionModal">Cancel</button>
+                    <button type="button" class="btn btn-warning" @onclick="ConfirmEndPrescriptionAsync">End Prescription</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="modal-backdrop fade show"></div>
+}
+
+<!-- Delete Prescription Confirmation Modal -->
+@if (ShowDeletePrescriptionModal)
+{
+    <div class="modal fade show" style="display: block;" tabindex="-1" role="dialog">
+        <div class="modal-dialog modal-sm" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Delete Prescription</h5>
+                    <button type="button" class="btn-close" @onclick="CloseDeletePrescriptionModal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <p>Are you sure you want to delete the prescription for <strong>@PrescriptionToDeleteName</strong>?</p>
+                    <div class="alert alert-warning">
+                        <small>This action cannot be undone.</small>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" @onclick="CloseDeletePrescriptionModal">Cancel</button>
+                    <button type="button" class="btn btn-danger" @onclick="ConfirmDeletePrescriptionAsync">Delete</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="modal-backdrop fade show"></div>
+}
+
+<!-- Delete Patient Confirmation Modal -->
+@if (ShowDeletePatientModal)
+{
+    <div class="modal fade show" style="display: block;" tabindex="-1" role="dialog">
+        <div class="modal-dialog modal-sm" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Remove Patient</h5>
+                    <button type="button" class="btn-close" @onclick="CloseDeletePatientModal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <p>Are you sure you want to remove patient <strong>@Patient.FirstName @Patient.LastName</strong>?</p>
+                    <div class="alert alert-danger">
+                        <strong>Warning:</strong> This will permanently delete the patient and all associated records (prescriptions, visits, etc.).
+                        <br><small>This action cannot be undone.</small>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" @onclick="CloseDeletePatientModal">Cancel</button>
+                    <button type="button" class="btn btn-danger" @onclick="ConfirmDeletePatientAsync">Remove Patient</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="modal-backdrop fade show"></div>
+}
 
 @code {
-
+    private string GetVisitTypeDisplayName(VisitType visitType)
+    {
+        return visitType switch
+        {
+            VisitType.GP => "General Practitioner",
+            VisitType.KRV => "Blood Work",
+            VisitType.XRAY => "X-Ray",
+            VisitType.CT => "CT Scan",
+            VisitType.MR => "MR Scan",
+            VisitType.ULTRA => "Ultrasound",
+            VisitType.EKG => "Electrocardiogram",
+            VisitType.ECHO => "Echocardiogram",
+            VisitType.EYE => "Eye Examination",
+            VisitType.DERM => "Dermatology",
+            VisitType.DENTA => "Dental",
+            VisitType.MAMMO => "Mammography",
+            VisitType.NEURO => "Neurology",
+            _ => visitType.ToString()
+        };
+    }
 }

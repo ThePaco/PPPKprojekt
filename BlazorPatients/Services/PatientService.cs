@@ -7,19 +7,22 @@ using Microsoft.EntityFrameworkCore;
 
 namespace BlazorPatients.Services;
 
-public class PatientService
+public class PatientService(PatientsContext dbContext,
+                            IValidator<PatientViewModel> validator)
 {
-    private readonly PatientsContext dbContext;
-    private readonly IValidator<PatientViewModel> validator;
-    public PatientService(PatientsContext dbContext, IValidator<PatientViewModel> validator)
-    {
-        this.dbContext = dbContext;
-        this.validator = validator;
-    }
-
     public async Task<List<PatientViewModel>> GetAllPatients()
     {
         return await Task.FromResult(dbContext.Patients.Select(p => p.ToViewModel()).ToList());
+    }
+
+    public async Task<PatientViewModel?> GetPatientAsync(int id)
+    {
+        var patient = await dbContext.Patients
+                                     .Include(pr => pr.Prescriptions)
+                                     .Include(vi => vi.Visits)
+                                     .Where(p => p.Id == id)
+                                     .FirstAsync();
+        return patient?.ToViewModel();
     }
 
     public async Task<PatientViewModel?> GetPatientByOib(string oib)
@@ -56,7 +59,7 @@ public class PatientService
             return Result.Failure("Patient details aren't valid!");
         }
         
-        var model = await dbContext.Patients.FirstOrDefaultAsync(p => p.Oib == updatedPatient.Oib);
+        var model = await dbContext.Patients.FirstOrDefaultAsync(p => p.Id == updatedPatient.Id);
         if (model == null)
         {
             return Result.Failure("Patient not found!");
@@ -68,9 +71,9 @@ public class PatientService
         return Result.Success();
     }
 
-    public async Task<Result> DeletePatientAsync(string oib)
+    public async Task<Result> DeletePatientAsync(int id)
     {
-        var patient = await dbContext.Patients.FindAsync(oib);
+        var patient = await dbContext.Patients.FindAsync(id);
         if (patient == null)
         {
             return Result.Failure("Patient not found!");
