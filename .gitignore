@@ -363,3 +363,4 @@ MigrationBackup/
 FodyWeavers.xsd
 /BlazorPatients/appsettings.json
 /PyGeneParserWeb/PyGeneParserWeb/services/secrets.json
+/PyGeneParserWeb/PyGeneParserWeb/services/_secrets.json
