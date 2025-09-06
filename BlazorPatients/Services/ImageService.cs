@@ -85,13 +85,11 @@ public class ImageService(PatientsContext dContext, Client supabaseClient)
             var supabaseFileName = $"{visitId}/{imageGuid}{fileExtension}";
             var bucket = supabaseClient.Storage.From(BucketName);
             
-            // Generate signed URL that expires in 1 hour
             var signedUrl = await bucket.CreateSignedUrl(supabaseFileName, 3600);
             return signedUrl;
         }
         catch (Exception)
         {
-            // Fallback to public URL if signed URL fails
             return GetImageUrl(imageGuid, visitId, fileExtension);
         }
     }

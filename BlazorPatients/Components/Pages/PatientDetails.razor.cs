@@ -1,14 +1,17 @@
-﻿using BlazorPatients.Services;
+﻿using BlazorPatients.Models.Enum;
+using BlazorPatients.Services;
 using BlazorPatients.ViewModels;
-using BlazorPatients.Models.Enum;
 using Microsoft.AspNetCore.Components;
+using Microsoft.JSInterop;
+using System.Text;
 
 namespace BlazorPatients.Components.Pages;
 
 public partial class PatientDetails(PatientService patientService,
                                     PrescriptionService perscriptionService,
                                     VisitService visitService,
-                                    NavigationManager navigationManager)
+                                    NavigationManager navigationManager,
+                                    IJSRuntime jsRuntime)
 {
     [Parameter]
     public int Id { get; set; }
@@ -82,8 +85,8 @@ public partial class PatientDetails(PatientService patientService,
         if (result.IsSuccess())
         {
             PrescriptionMessage = "Prescription added successfully!";
-            await LoadPrescriptionsAndVisits(); // Refresh the data
-            await Task.Delay(1500); // Show success message briefly
+            await LoadPrescriptionsAndVisits();
+            await Task.Delay(1500);
             CloseAddPrescriptionModal();
         }
         else
@@ -225,5 +228,67 @@ public partial class PatientDetails(PatientService patientService,
             Message = $"Error deleting patient: {result.Errors.FirstOrDefault()}";
             CloseDeletePatientModal();
         }
+    }
+    private string GetVisitTypeDisplayName(VisitType visitType)
+    {
+        return visitType switch
+        {
+            VisitType.GP => "General Practitioner",
+            VisitType.KRV => "Blood Work",
+            VisitType.XRAY => "X-Ray",
+            VisitType.CT => "CT Scan",
+            VisitType.MR => "MR Scan",
+            VisitType.ULTRA => "Ultrasound",
+            VisitType.EKG => "Electrocardiogram",
+            VisitType.ECHO => "Echocardiogram",
+            VisitType.EYE => "Eye Examination",
+            VisitType.DERM => "Dermatology",
+            VisitType.DENTA => "Dental",
+            VisitType.MAMMO => "Mammography",
+            VisitType.NEURO => "Neurology",
+            _ => visitType.ToString()
+        };
+    }
+    private async Task ExportToCsvAsync()
+    {
+        var csv = new StringBuilder();
+
+        csv.AppendLine("PATIENT DETAILS");
+        csv.AppendLine("Id,FirstName,LastName,IsMale,Oib,Birthday");
+        csv.AppendLine($"{Patient.Id},{EscapeCsvField(Patient.FirstName)},{EscapeCsvField(Patient.LastName)},{Patient.IsMale},{EscapeCsvField(Patient.Oib)},{Patient.Birthday:yyyy-MM-dd}");
+        csv.AppendLine();
+
+        csv.AppendLine("PRESCRIPTIONS");
+        csv.AppendLine("PrescriptionId,PatientId,MedicationName,DatePrescribed,DateEnding");
+        foreach (var prescription in Patient.Prescriptions)
+        {
+            csv.AppendLine($"{prescription.PrecriptionId},{prescription.PatientId},{EscapeCsvField(prescription.MedicationName)},{prescription.DatePrescribed:yyyy-MM-dd},{prescription.DateEnding?.ToString("yyyy-MM-dd") ?? ""}");
+        }
+        csv.AppendLine();
+
+        csv.AppendLine("VISITS");
+        csv.AppendLine("VisitId,PatientId,Type,Date,DoctorsNotes");
+        foreach (var visit in Patient.Visits)
+        {
+            csv.AppendLine($"{visit.VisitId},{visit.PatientId},{visit.Type},{visit.Date:yyyy-MM-dd},{EscapeCsvField(visit.DoctorsNotes)}");
+        }
+
+        var fileName = $"patient_{Patient.Id}_export_{DateTime.Now:yyyyMMdd_HHmmss}.csv";
+        var csvContent = csv.ToString();
+
+        await jsRuntime.InvokeVoidAsync("downloadFile", fileName, csvContent, "text/csv");
+    }
+
+    private static string EscapeCsvField(string field)
+    {
+        if (string.IsNullOrEmpty(field))
+            return "";
+
+        if (field.Contains(',') || field.Contains('"') || field.Contains('\n') || field.Contains('\r'))
+        {
+            return $"\"{field.Replace("\"", "\"\"")}\"";
+        }
+
+        return field;
     }
 }

@@ -66,12 +66,10 @@ public partial class Home(PatientService patientService)
         if (addPatientResult.HasValue && addPatientResult.Value.IsSuccess())
         {
             AddPatientMessage = "Patient successfully added!";
-            // Refresh the patient list
             Patients = await patientService.GetAllPatients();
             FilterPatients();
             StateHasChanged();
             
-            // Close the modal after a short delay to show success message
             await Task.Delay(1000);
             CloseAddPatientModal();
         }
